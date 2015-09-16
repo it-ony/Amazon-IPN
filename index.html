@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Display Amazon IPN Messages in a readable format</title>
+
+    <style>
+        pre {
+            border: 1px solid gray;
+            padding: 0.5em;
+            line-height: 1.3;
+            background: lightgray;
+            overflow: auto;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <p>Amazon IPN Messages are XML in JSON in JSON. Read it as JSON!</p>
+    <textarea placeholder="IPN message goes here"></textarea>
+    <pre></pre>
+
+    <script>
+        (function(document) {
+
+            var textarea = document.getElementsByTagName("textarea")[0],
+                    output = document.getElementsByTagName("pre")[0];
+            textarea.addEventListener("change", format);
+
+            format();
+
+            function format () {
+                try {
+                    var ipn, message, notificationData, input = textarea.value;
+
+                    if (!input) {
+                        output.innerHTML = "Enter IPN in textarea";
+                        return;
+                    }
+
+                    ipn = JSON.parse(input);
+                    message = JSON.parse(ipn.Message);
+                    notificationData = message.NotificationData;
+
+                    var xml = (new DOMParser()).parseFromString(message.NotificationData, "application/xml");
+
+                    ipn.Message = message;
+                    message.NotificationData = xml2json(xml);
+
+                    output.innerHTML = JSON.stringify(ipn, null, 2);
+
+                } catch (e) {
+                    output.innerHTML = e.message;
+                }
+            }
+
+            function xml2json (xml) {
+                var obj = {};
+                if (xml.children.length > 0) {
+                    for (var i = 0; i < xml.children.length; i++) {
+                        var item = xml.children.item(i);
+                        var nodeName = item.nodeName;
+
+                        if (typeof (obj[nodeName]) == "undefined") {
+                            obj[nodeName] = xml2json(item);
+                        } else {
+                            if (typeof (obj[nodeName].push) == "undefined") {
+                                var old = obj[nodeName];
+
+                                obj[nodeName] = [];
+                                obj[nodeName].push(old);
+                            }
+                            obj[nodeName].push(xml2json(item));
+                        }
+                    }
+                } else {
+                    obj = xml.textContent;
+                }
+                return obj;
+
+            }
+
+        })(document);
+    </script>
+</body>
+</html>
